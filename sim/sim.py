@@ -116,4 +116,15 @@ class FauxNysa(Nysa):
     def unregister_interrupt_callback(self, index, callback = None):
         pass
 
+    def upload(self, filepath, status = None):
+        return
+
+    def program (self, status = None):
+        return
+
+    def ioctl(self, name, arg = None, status = None):
+        return
+
+    def list_ioctl(self, status = None):
+        return
 
