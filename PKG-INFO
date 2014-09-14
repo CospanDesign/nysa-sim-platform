@@ -1,0 +1,9 @@
+
+name: nysa-sim-platform
+Version: 0.1.0
+Summary: Simulation support for Nysa host
+Home-page: https://nysa.cospandesign.com
+Author: Cospan Design
+Author-email: dave.mccoy@cospandesign.com
+License: LICENSE.txt
+

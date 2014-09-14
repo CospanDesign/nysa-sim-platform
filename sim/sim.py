@@ -46,8 +46,8 @@ from nysa.ibuilder.lib.gen_scripts.gen_drt import GenDRT
 
 class FauxNysa(Nysa):
 
-    def __init__(self, dev_dict, debug = False):
-        Nysa.__init__(self, debug)
+    def __init__(self, dev_dict, status = None):
+        Nysa.__init__(self, status)
         self.dev_dict = dev_dict
 
     def read(self, device_id, address, length = 1, memory_device = False):
@@ -81,7 +81,6 @@ class FauxNysa(Nysa):
         """
 
         gd = GenDRT()
-        #d = gd.gen_script(self.dev_dict, debug = True)
         d = gd.gen_script(self.dev_dict, debug = False)
         drt_array = Array('B')
         dl = d.splitlines()
@@ -116,15 +115,15 @@ class FauxNysa(Nysa):
     def unregister_interrupt_callback(self, index, callback = None):
         pass
 
-    def upload(self, filepath, status = None):
+    def upload(self, filepath):
         return
 
-    def program (self, status = None):
+    def program (self):
         return
 
-    def ioctl(self, name, arg = None, status = None):
+    def ioctl(self, name, arg = None):
         return
 
-    def list_ioctl(self, status = None):
+    def list_ioctl(self):
         return
 
