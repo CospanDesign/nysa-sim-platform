@@ -65,3 +65,5 @@ class SimPlatform(Platform):
                                       "images",
                                       "*.yaml"))
 
+    def test_build_tools(self):
+        return True
