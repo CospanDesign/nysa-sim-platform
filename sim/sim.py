@@ -52,8 +52,12 @@ class FauxNysa(Nysa):
 
     def read(self, device_id, address, length = 1, memory_device = False):
         read_array = Array('B')
+        #print "Reading: %d" % length
         for i in range(length * 4):
-            read_array.append(i)
+            
+            #read_array.append(i)
+            read_array.append(0)
+            #read_array.append(i % 256)
         return read_array
 
     def write(self, device_id, address, data, memory_device=False):
@@ -106,7 +110,7 @@ class FauxNysa(Nysa):
 
     def wait_for_interrupts(self, wait_time = 1):
         time.sleep(0.1)
-        return
+        return True
 
 
     def register_interrupt_callback(self, index, callback):
