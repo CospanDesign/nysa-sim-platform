@@ -47,7 +47,7 @@ INTERFACE:
 
 SLAVES:
     lcd:
-      filename:             wb_seeed_tft.v
+      filename:             wb_nh_lcd.v
       BUS:
         mem:                mem1
 
@@ -61,15 +61,23 @@ SLAVES:
         direction:          output
 
       o_register_data_sel:
-        loc:                LCD_RS_N
+        loc:                LCD_REGISTER_DATA_SEL
         direction:          output
 
       o_write_n:
-        loc:                LCD_WR_N
+        loc:                LCD_WRITE_N
         direction:          output
 
       o_read_n:
-        loc:                LCD_RD_N
+        loc:                LCD_READ_N
+        direction:          output
+
+      i_tearing_effect:
+        loc:                LCD_TEARING_EFFECT
+        direction:          input
+
+      o_reset_n:
+        loc:                LCD_RESET_N
         direction:          output
 
 MEMORY:
