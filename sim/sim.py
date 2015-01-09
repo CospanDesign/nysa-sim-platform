@@ -38,10 +38,9 @@ from array import array as Array
 
 
 from nysa.host.nysa import Nysa
-from nysa.cbuilder.drt import drt as drt_controller
-from nysa.cbuilder.drt.drt import DRTError
-from nysa.cbuilder.drt.drt import DRTManager
-from nysa.ibuilder.lib.gen_scripts.gen_drt import GenDRT
+from nysa.cbuilder.sdb import SDBError
+from nysa.cbuilder.sdb import SDB
+from nysa.ibuilder.lib.gen_scripts.gen_sdb import GenSDB
 
 
 class FauxNysa(Nysa):
