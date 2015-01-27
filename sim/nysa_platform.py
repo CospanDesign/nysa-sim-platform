@@ -27,7 +27,8 @@ __author__ = 'dave.mccoy@cospandesign.com (Dave McCoy)'
 import sys
 import os
 import glob
-import yaml
+#import yaml
+import json
 import hashlib
 
 
@@ -38,23 +39,23 @@ from sim import FauxNysa
 class SimPlatform(Platform):
     def __init__(self, status = None):
         super (SimPlatform, self).__init__(status)
-        self.s = status
 
     def get_type(self):
-        if self.s: self.s.Verbose("Returnig 'sim' type")
+        if self.status: self.status.Verbose("Returnig 'sim' type")
         return "sim"
 
+    '''
     def scan(self):
-        if self.s: self.s.Verbose("Scanning...")
+        if self.status: self.status.Verbose("Scanning...")
         configs = self.find_all_sims()
-        if self.s: self.s.Verbose("scan: %s" % str(configs))
+        if self.status: self.status.Verbose("scan: %s" % str(configs))
         sim_dict = {}
         for f in configs:
             d = yaml.load(open(f, "r"))
             unique = os.path.split(f)[-1]
             unique = os.path.splitext(unique)[0]
             fn = FauxNysa(d)
-            if self.s: self.s.Debug("\tFound: %s" % unique)
+            if self.status: self.status.Debug("\tFound: %s" % unique)
             sim_dict[unique] = fn
 
         return sim_dict
@@ -63,6 +64,28 @@ class SimPlatform(Platform):
         return glob.glob(os.path.join(os.path.dirname(__file__),
                                       "images",
                                       "*.yaml"))
+    '''
+
+    def scan(self):
+        if self.status: self.status.Verbose("Scanning...")
+        configs = self.find_all_sims()
+        if self.status: self.status.Verbose("scan: %s" % str(configs))
+        sim_dict = {}
+
+        for f in configs:
+            d = json.load(open(f, "r"))
+            unique = os.path.split(f)[-1]
+            unique = os.path.splitext(unique)[0]
+            fn = FauxNysa(d, self.status)
+            if self.status: self.status.Debug("\tFound: %s" % unique)
+            sim_dict[unique] = fn
+
+        return sim_dict
+
+    def find_all_sims(self):
+        return glob.glob(os.path.join(os.path.dirname(__file__),
+                                        "images",
+                                        "*.json"))
 
     def test_build_tools(self):
         return True

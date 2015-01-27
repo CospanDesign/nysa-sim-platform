@@ -68,8 +68,8 @@ class FauxNysa(Nysa):
     def reset(self):
         return
 
-    def read_drt(self):
-        """read_drt
+    def read_sdb(self):
+        """read_sdb
 
         Read the contents of the DRT
 
@@ -85,24 +85,24 @@ class FauxNysa(Nysa):
 
         gd = GenDRT()
         d = gd.gen_script(self.dev_dict, debug = False)
-        drt_array = Array('B')
+        sdb_array = Array('B')
         dl = d.splitlines()
         #print "DL Lenght: %d" % len(dl)
         for l in dl:
             #print "l: %s" % l
             i = int(l, 16)
-            drt_array.append((i >> 24) & 0xFF)
-            drt_array.append((i >> 16) & 0xFF)
-            drt_array.append((i >>  8) & 0xFF)
-            drt_array.append((i      ) & 0xFF)
+            sdb_array.append((i >> 24) & 0xFF)
+            sdb_array.append((i >> 16) & 0xFF)
+            sdb_array.append((i >>  8) & 0xFF)
+            sdb_array.append((i      ) & 0xFF)
        
         #print "d: %s" % str(d)
-        num_of_devices  = drt_controller.get_number_of_devices(drt_array)
+        num_of_devices  = sdb_controller.get_number_of_devices(sdb_array)
         #print "Num Devices: %d" % num_of_devices
 
         len_to_read = num_of_devices * 8
-        self.drt_manager.set_drt(drt_array)
-        return drt_array
+        self.sdb_manager.set_sdb(sdb_array)
+        return sdb_array
 
     def is_interrupt_for_slave(self, dev_id):
         return True
@@ -129,3 +129,5 @@ class FauxNysa(Nysa):
     def list_ioctl(self):
         return
 
+    def get_sdb_base_address(self):
+        return 0x00
