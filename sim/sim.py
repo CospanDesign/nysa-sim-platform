@@ -36,12 +36,9 @@ import os
 import time
 from array import array as Array
 
-
-from nysa.host.nysa import Nysa
-from nysa.cbuilder.sdb import SDBError
-from nysa.cbuilder.sdb import SDB
 from nysa.ibuilder.lib.gen_scripts.gen_sdb import GenSDB
-
+from nysa.cbuilder.sdb import SDBError
+from nysa.host.nysa import Nysa
 
 class FauxNysa(Nysa):
 
@@ -49,17 +46,20 @@ class FauxNysa(Nysa):
         Nysa.__init__(self, status)
         self.dev_dict = dev_dict
 
-    def read(self, device_id, address, length = 1, memory_device = False, disable_auto_inc = False):
-        read_array = Array('B')
-        #print "Reading: %d" % length
-        for i in range(length * 4):
-            
-            #read_array.append(i)
-            read_array.append(0)
-            #read_array.append(i % 256)
-        return read_array
+    def read(self, address, length = 1, memory_device = False, disable_auto_inc = False):
+        ra = Array('B')
+        length *= 4
+        address *= 4
+        count = 0
+        for count in range (0, length, 4):
+            if address + count < len(self.rom):
+                ra.extend(self.rom[address + count :address + count + 4])
+            else:
+                ra.extend(Array('B'), [0x00, 0x00, 0x00, 0x00])
 
-    def write(self, device_id, address, data, memory_device=False, disable_auto_inc = False):
+        return ra
+
+    def write(self, address, data, memory_device=False, disable_auto_inc = False):
         return
 
     def ping(self):
@@ -77,32 +77,18 @@ class FauxNysa(Nysa):
           Nothing
 
         Returns (Array of bytes):
-          the raw DRT data, this can be ignored for normal operation 
+          the raw DRT data, this can be ignored for normal operation
 
         Raises:
           Nothing
         """
 
-        gd = GenDRT()
-        d = gd.gen_script(self.dev_dict, debug = False)
-        sdb_array = Array('B')
-        dl = d.splitlines()
-        #print "DL Lenght: %d" % len(dl)
-        for l in dl:
-            #print "l: %s" % l
-            i = int(l, 16)
-            sdb_array.append((i >> 24) & 0xFF)
-            sdb_array.append((i >> 16) & 0xFF)
-            sdb_array.append((i >>  8) & 0xFF)
-            sdb_array.append((i      ) & 0xFF)
-       
-        #print "d: %s" % str(d)
-        num_of_devices  = sdb_controller.get_number_of_devices(sdb_array)
-        #print "Num Devices: %d" % num_of_devices
+        gd = GenSDB()
+        self.rom = gd.gen_rom(self.dev_dict, debug = False)
+        self.nsm.read_sdb(self)
 
-        len_to_read = num_of_devices * 8
-        self.sdb_manager.set_sdb(sdb_array)
-        return sdb_array
+    def get_sdb_base_address(self):
+        return 0x00
 
     def is_interrupt_for_slave(self, dev_id):
         return True
@@ -131,3 +117,5 @@ class FauxNysa(Nysa):
 
     def get_sdb_base_address(self):
         return 0x00
+
+
