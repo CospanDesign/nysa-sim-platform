@@ -1,7 +1,7 @@
 {
     "BASE_DIR":"~/projects/ibuilder_project",
     "board":"dionysus",
-    "IMAGE_ID":260,
+    "IMAGE_ID":0,
     "PROJECT_NAME":"example_project",
     "TEMPLATE":"wishbone_template.json",
     "INTERFACE":{
@@ -63,57 +63,20 @@
                 }
             }
         },
-        "camera_i2c":{
-            "filename":"wb_i2c.v",
-            "bind":{
-                "scl":{
-                    "loc":"I2C_SCL",
-                    "direction":"inout"
-                },
-                "sda":{
-                    "loc":"I2C_SDA",
-                    "direction":"inout"
-                }
-            }
-        },
-        "camera":{
-            "filename":"wb_sf_camera.v",
+        "dmar1":{
+            "filename":"wb_dma_reader.v",
             "BUS":{
                 "mem":"mem1"
             },
             "bind":{
-                "o_cam_rst":{
-                    "loc":"CAM_RST",
-                    "direction":"output"
-                },
-                "o_flash":{
-                    "loc":"FLASH",
-                    "direction":"output"
-                },
-                "o_cam_in_clk":{
-                    "loc":"CAM_CLK",
-                    "direction":"output"
-                },
-                "i_pix_clk":{
-                    "loc":"PIX_CLK",
-                    "direction":"input"
-                },
-                "i_flash_strobe":{
-                    "loc":"CAM_FLASH",
-                    "direction":"input"
-                },
-                "i_vsync":{
-                    "loc":"CAM_VSYNC",
-                    "direction":"input"
-                },
-                "i_hsync":{
-                    "loc":"CAM_HSYNC",
-                    "direction":"input"
-                },
-                "i_pix_data":{
-                    "loc":"PIX_DATA[7:0]",
-                    "direction":"input"
-                }
+            }
+        },
+        "dmaw1":{
+            "filename":"wb_dma_writer.v",
+            "BUS":{
+                "mem":"mem1"
+            },
+            "bind":{
             }
         }
     },

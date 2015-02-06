@@ -47,6 +47,8 @@ class FauxNysa(Nysa):
         self.dev_dict = dev_dict
 
     def read(self, address, length = 1, memory_device = False, disable_auto_inc = False):
+        if self.s: self.s.Verbose("Reading: 0x%08X, Length (Words): %d, Memory Device: %s, Disable auto increment: %s" %
+                (address, length, memory_device, disable_auto_inc))
         ra = Array('B')
         length *= 4
         address *= 4
@@ -55,18 +57,25 @@ class FauxNysa(Nysa):
             if address + count < len(self.rom):
                 ra.extend(self.rom[address + count :address + count + 4])
             else:
-                ra.extend(Array('B'), [0x00, 0x00, 0x00, 0x00])
+                ra.extend(Array('B', [0x00, 0x00, 0x00, 0x00]))
 
         return ra
 
     def write(self, address, data, memory_device=False, disable_auto_inc = False):
-        return
+        verbose_data = data
+        if len(verbose_data) > 8:
+            verbose_data = verbose_data[:8]
+        if self.s: self.s.Verbose("Write: 0x%08X, %s, Memory Device: %s, Disable Auto Inc: %s" %
+                                    (address,
+                                    data,
+                                    memory_device,
+                                    disable_auto_inc))
 
     def ping(self):
-        return
+        if self.s: self.s.Verbose("entered")
 
     def reset(self):
-        return
+        if self.s: self.s.Verbose("entered")
 
     def read_sdb(self):
         """read_sdb
@@ -82,40 +91,52 @@ class FauxNysa(Nysa):
         Raises:
           Nothing
         """
-
+        if self.s: self.s.Verbose("entered")
         gd = GenSDB()
         self.rom = gd.gen_rom(self.dev_dict, debug = False)
         self.nsm.read_sdb(self)
 
     def get_sdb_base_address(self):
+        if self.s: self.s.Verbose("entered")
         return 0x00
 
     def is_interrupt_for_slave(self, dev_id):
+        if self.s: self.s.Verbose("entered")
         return True
 
     def wait_for_interrupts(self, wait_time = 1):
+        if self.s: self.s.Verbose("entered")
         time.sleep(0.1)
         return True
 
     def register_interrupt_callback(self, index, callback):
-        pass
+        if self.s: self.s.Verbose("entered")
 
     def unregister_interrupt_callback(self, index, callback = None):
-        pass
+        if self.s: self.s.Verbose("entered")
+
+    def get_board_name(self):
+        if self.s: self.s.Verbose("entered")
+        return "sim"
 
     def upload(self, filepath):
+        if self.s: self.s.Verbose("entered")
         return
 
     def program (self):
+        if self.s: self.s.Verbose("entered")
         return
 
     def ioctl(self, name, arg = None):
+        if self.s: self.s.Verbose("entered")
         return
 
     def list_ioctl(self):
+        if self.s: self.s.Verbose("entered")
         return
 
     def get_sdb_base_address(self):
+        if self.s: self.s.Verbose("entered")
         return 0x00
 
 
