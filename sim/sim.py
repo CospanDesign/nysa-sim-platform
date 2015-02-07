@@ -46,9 +46,9 @@ class FauxNysa(Nysa):
         Nysa.__init__(self, status)
         self.dev_dict = dev_dict
 
-    def read(self, address, length = 1, memory_device = False, disable_auto_inc = False):
-        if self.s: self.s.Verbose("Reading: 0x%08X, Length (Words): %d, Memory Device: %s, Disable auto increment: %s" %
-                (address, length, memory_device, disable_auto_inc))
+    def read(self, address, length = 1, disable_auto_inc = False):
+        if self.s: self.s.Verbose("Reading: 0x%08X, Length (Words): %d, Disable auto increment: %s" %
+                (address, length, disable_auto_inc))
         ra = Array('B')
         length *= 4
         address *= 4
@@ -61,14 +61,13 @@ class FauxNysa(Nysa):
 
         return ra
 
-    def write(self, address, data, memory_device=False, disable_auto_inc = False):
+    def write(self, address, data, disable_auto_inc = False):
         verbose_data = data
         if len(verbose_data) > 8:
             verbose_data = verbose_data[:8]
-        if self.s: self.s.Verbose("Write: 0x%08X, %s, Memory Device: %s, Disable Auto Inc: %s" %
+        if self.s: self.s.Verbose("Write: 0x%08X, %s, Disable Auto Inc: %s" %
                                     (address,
                                     data,
-                                    memory_device,
                                     disable_auto_inc))
 
     def ping(self):
