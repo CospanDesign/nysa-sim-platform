@@ -78,6 +78,9 @@
         },
         "camera":{
             "filename":"wb_sf_camera.v",
+            "integration":[
+                "camera_i2c"    
+            ],
             "BUS":{
                 "mem":"mem1"
             },
