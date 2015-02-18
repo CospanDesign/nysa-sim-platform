@@ -93,7 +93,7 @@ class FauxNysa(Nysa):
         if self.s: self.s.Verbose("entered")
         gd = GenSDB()
         self.rom = gd.gen_rom(self.dev_dict, debug = False)
-        self.nsm.read_sdb(self)
+        return self.nsm.read_sdb(self)
 
     def get_sdb_base_address(self):
         if self.s: self.s.Verbose("entered")
