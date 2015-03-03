@@ -23,7 +23,7 @@ setup(
     author_email='dave.mccoy@cospandesign.com',
     packages=find_packages('.'),
     url="http://nysa.cospandesign.com",
-    package_data={'' : ["*.json", "*.yaml"]},
+    package_data={'' : ["*.json"]},
     install_requires = [
         "nysa"
     ],
