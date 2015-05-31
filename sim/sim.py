@@ -76,6 +76,9 @@ class FauxNysa(Nysa):
     def reset(self):
         if self.s: self.s.Verbose("entered")
 
+    def is_programmed(self):
+        return True
+
     def read_sdb(self):
         """read_sdb
 
