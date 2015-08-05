@@ -19,15 +19,32 @@ from array import array as Array
 
 import cocotb
 import threading
-from cocotb.triggers import Timer, Join, RisingEdge, ReadOnly, ReadWrite, ClockCycles
-from cocotb.clock import Clock
-from cocotb.result import ReturnValue, TestFailure
+from cocotb.triggers import Timer
+from cocotb.triggers import Join
+from cocotb.triggers import RisingEdge
+from cocotb.triggers import ReadOnly
+from cocotb.triggers import FallingEdge
+from cocotb.triggers import ReadWrite
+from cocotb.triggers import Event
+
+from cocotb.result import ReturnValue
+from cocotb.result import TestFailure
 from cocotb.binary import BinaryValue
+from cocotb.clock import Clock
 from cocotb import bus
+import json
 import cocotb.monitors
 
-from nysa.host.userland.host import Nysa
-from nysa.host.userland.host import NysaCommError
+#from nysa.host.nysa import Nysa
+from sim.sim import FauxNysa
+
+from nysa.ibuilder.lib.gen_scripts.gen_sdb import GenSDB
+from nysa.host.nysa import NysaCommError
+from nysa.common.status import Status
+
+CLK_PERIOD = 10
+RESET_PERIOD = 20
+
 
 
 def create_thread(function, name, dut, args):
@@ -41,211 +58,170 @@ def create_thread(function, name, dut, args):
     dut.log.warning("Thread Started")
     return new_thread
 
+class NysaSim (FauxNysa):
 
-class NysaSim (Nysa):
+    def __init__(self, dut, period = CLK_PERIOD):
+        self.status = Status()
+        self.status.set_level('verbose')
+        self.comm_lock = cocotb.triggers.Lock('comm')
+        self.dut                              = dut
+        dev_dict                              = json.load(open('test_dict.json'))
+        super (NysaSim, self).__init__(dev_dict, self.status)
 
-    def __init__(self, dut, debug = False):
-        self.period = 10
-        self.reset_length = 40
-        self.dut    = dut
-        super (NysaSim, self).__init__(debug)
-        self.timeout        = 1000
-        self.response       = Array('B')
+        self.timeout                          = 1000
+        self.response                         = Array('B')
 
-    
-        #@cocotb.coroutine
-        #def setup(self):
+        self.dut.rst                          <= 0
+        self.dut.ih_reset                     <= 0
 
-        self.rst            = self.dut.rst
-        self.rst            <= 1
-        self.rst            = self.dut.rst
-        self.rst            <= 0
+        self.dut.in_ready                     <= 0
+        self.dut.in_command                   <= 0
+        self.dut.in_address                   <= 0
+        self.dut.in_data                      <= 0
+        self.dut.in_data_count                <= 0
+        gd = GenSDB()
+        self.rom = gd.gen_rom(self.dev_dict, debug = False)
 
-        self.master_ready   = self.dut.sim_master_ready
-        self.in_reset       = self.dut.sim_in_reset
+        cocotb.fork(Clock(dut.clk, period).start())
 
-        self.in_ready       = self.dut.sim_in_ready
-        self.in_command     = self.dut.sim_in_command
-        self.in_address     = self.dut.sim_in_address
-        self.in_data        = self.dut.sim_in_data
-        self.in_data_count  = self.dut.sim_in_data_count
-
-        self.out_en         = self.dut.sim_out_en
-        self.out_ready      = self.dut.sim_out_ready
-        self.out_status     = self.dut.sim_out_status
-        self.out_address    = self.dut.sim_out_address
-        self.out_data       = self.dut.sim_out_data
-
-        self.in_ready       <= 0
-        self.in_reset       <= 0
-        self.out_ready      <= 0
-
-        self.in_command     <= 0
-        self.in_address     <= 0
-        self.in_data        <= 0
-        self.in_data_count  <= 0
-        #yield ClockCycles(self.dut.clk, 10)
-
-        self.dut.log.info("Clock Started")
-    
     @cocotb.coroutine
-    def read(self, device_id, address, length = 1, mem_device = False):
-        self.dut.log.info("reading")
+    def wait_clocks(self, num_clks):
+        for i in range(num_clks):
+            yield RisingEdge(self.dut.clk)
+
+    def read_sdb(self):
+        """read_sdb
+
+        Read the contents of the DRT
+
+        Args:
+          Nothing
+
+        Returns (Array of bytes):
+          the raw DRT data, this can be ignored for normal operation
+
+        Raises:
+          Nothing
+        """
+        self.s.Verbose("entered")
+        gd = GenSDB()
+        self.rom = gd.gen_rom(self.dev_dict, debug = False)
+
+        return self.nsm.read_sdb(self)
+
+    def read(self, address, length = 1, mem_device = False, disable_auto_inc = False):
+        if (address * 4) + (length * 4) <= len(self.rom):
+            length *= 4
+            address *= 4
+
+            ra = Array('B')
+            for count in range (0, length, 4):
+                ra.extend(self.rom[address + count :address + count + 4])
+            #print "ra: %s" % str(ra)
+            return ra
+
+        self._read(address, length, mem_device)
+        return self.response
+
+    @cocotb.function
+    def _read(self, address, length = 1, mem_device = False):
+        yield(self.comm_lock.acquire())
+        #print "_Read Acquire Lock"
         data_index = 0
-        self.in_ready       <= 0 
-        self.out_ready      <= 1
-        yield ClockCycles(self.dut.clk, 100)
+        self.dut.in_ready       <= 0
+        self.dut.out_ready      <= 0
 
         self.response = Array('B')
+        yield( self.wait_clocks(10))
 
         if (mem_device):
-            self.in_command <= 0x00010002
-            self.address    <= address
+            self.dut.in_command <= 0x00010002
         else:
-            self.in_command <= 0x00000002
-            self.in_address <= (((0x0F & device_id) << 24) | address)
+            self.dut.in_command <= 0x00000002
 
-        self.in_data_count  <= length
-        self.in_data        <= 0
+        self.dut.in_data_count  <= length
+        self.dut.in_address     <= address
+        self.dut.in_data        <= 0
 
-        yield ClockCycles(self.dut.clk, 1)
-        self.in_ready       <= 1
+        yield( self.wait_clocks(1))
+        self.dut.in_ready       <= 1
+        yield FallingEdge(self.dut.master_ready)
+        yield( self.wait_clocks(1))
+        self.dut.in_ready       <= 0
+        yield( self.wait_clocks(1))
+        self.dut.out_ready      <= 1
+
         while data_index < length:
-            timeout_count   =  0
-            while timeout_count < self.timeout:
-                yield RisingEdge(self.dut.clk)
-                timeout_count   += 1
-                yield ReadOnly()
-                if self.out_en.value.get_value() == 0:
-                    continue
-                else:
-                    break
-
-            if timeout_count == self.timeout:
-                self.dut.log.error("Timed out while waiting for master to be respond")
-                return
-
-            data_index += 1
-            #yield RisingEdge(self.dut.clk)
-            #yield ReadOnly()
-            value = self.out_data.value.get_value()
-            print "%d Received: 0x%08X" % (data_index, value)
+            #self.dut.log.info("Waiting for master to assert out enable")
+            yield RisingEdge(self.dut.out_en)
+            yield( self.wait_clocks(1))
+            self.dut.out_ready      <= 0
+            timeout_count           =  0
+            data_index              += 1
+            value = self.dut.out_data.value.get_value()
             self.response.append(0xFF & (value >> 24))
             self.response.append(0xFF & (value >> 16))
             self.response.append(0xFF & (value >> 8))
             self.response.append(0xFF & value)
+            yield( self.wait_clocks(1))
+            self.dut.out_ready      <= 1
 
-        self.out_ready      <= 0
- 
+        if self.dut.master_ready.value.get_value() == 0:
+            yield RisingEdge(self.dut.master_ready)
+
+        yield( self.wait_clocks(10))
+        self.comm_lock.release()
         raise ReturnValue(self.response)
 
-    @cocotb.coroutine
-    def _read(self, device_id, address, length = 1, mem_device = False):
-        data_index = 0
-        self.in_ready       <= 0 
-        self.out_ready      <= 1
-        yield ClockCycles(self.dut.clk, 100)
+    @cocotb.function
+    def write(self, address, data = None, mem_device = False, disable_auto_inc=False):
+        yield(self.comm_lock.acquire())
+        # print "Write Acquired Lock"
+        data_count = len(data) / 4
+        #print "data count: %d" % data_count
+        yield( self.wait_clocks(1))
 
-        self.response = Array('B')
-
-        if (mem_device):
-            self.in_command <= 0x00010002
-            self.address    <= address
-        else:
-            self.in_command <= 0x00000002
-            self.in_address <= (((0x0F & device_id) << 24) | address)
-
-        self.in_data_count  <= length
-        self.in_data        <= 0
-
-        yield ClockCycles(self.dut.clk, 1)
-        self.in_ready       <= 1
-        while data_index < length:
-            timeout_count   =  0
-            while timeout_count < self.timeout:
-                yield RisingEdge(self.dut.clk)
-                timeout_count   += 1
-                yield ReadOnly()
-                if self.out_en.value.get_value() == 0:
-                    continue
-                else:
-                    break
-
-            if timeout_count == self.timeout:
-                self.dut.log.error("Timed out while waiting for master to be respond")
-                return
-
-            data_index += 1
-            yield RisingEdge(self.dut.clk)
-            yield ReadOnly()
-            value = self.out_data.value.get_value()
-            print "Received: 0x%08X" % value
-            self.response.append(0xFF & (value >> 24))
-            self.response.append(0xFF & (value >> 16))
-            self.response.append(0xFF & (value >> 8))
-            self.response.append(0xFF & value)
-
-        self.out_ready      <= 0
-        
-
-    @cocotb.coroutine
-    def write(self, device_id, address, data = None, mem_device = False):
-        data_count = len(data)
         if data_count == 0:
             raise NysaCommError("Length of data to write is 0!")
         data_index          = 0
         timeout_count       = 0
 
-        self.dut.log.info("Writing data")
-        self.in_ready       <= 0
-        self.out_ready      <= 1
+        #self.dut.log.info("Writing data")
+        self.dut.in_address         <= address
         if (mem_device):
-            self.in_command <= 0x00010001
-            self.address    <= address
+            self.dut.in_command     <= 0x00010001
         else:
-            self.in_command <= 0x00000001
-            self.in_address <= (((0x0F & device_id) << 24) | address)
+            self.dut.in_command     <= 0x00000001
 
-        self.in_data_count  <=  len(data)
+        self.dut.in_data_count      <=  data_count
 
-
-        yield ClockCycles(self.dut.clk, 1)
-        self.in_ready       <= 1
-        
-        while data_index < data_count:
-            self.in_data        <=  data[data_index]
-            data_index          += 1
+        #while data_index < data_count:
+        for data_index in range(0, len(data), 4):
+            self.dut.in_data        <=  (data[data_index    ] << 24) | \
+                                        (data[data_index + 1] << 16) | \
+                                        (data[data_index + 2] << 8 ) | \
+                                        (data[data_index + 3]      )
+            self.dut.in_ready       <= 1
+            #self.dut.log.info("Waiting for master to deassert ready")
+            yield FallingEdge(self.dut.master_ready)
+            yield( self.wait_clocks(1))
+            #data_index          += 1
             timeout_count       =  0
-            while timeout_count < self.timeout:
-                yield RisingEdge(self.dut.clk)
-                timeout_count   += 1
-                yield ReadOnly()
-                if self.master_ready.value.get_value() == 0:
-                    continue
-                else:
-                    break
-            if timeout_count == self.timeout:
-                self.dut.log.error("Timed out while waiting for master to be ready")
-                return
-        
-        timeout_count       =  0
-        while timeout_count < self.timeout:
-            yield RisingEdge(self.dut.clk)
-            timeout_count   += 1
-            yield ReadOnly()
-            if self.out_en.value.get_value() == 0:
-                continue
-            else:
-                break
+            #self.dut.log.info("Waiting for master to be ready")
+            self.dut.in_ready       <= 0
+            yield RisingEdge(self.dut.master_ready)
+            yield(self.wait_clocks(1))
 
-        if timeout_count == self.timeout:
-            self.dut.log.error("Timed out while waiting for master to respond")
-            return
-        
-        self.in_ready       <= 0
-        self.dut.log.info("Master Responded to write")
-        self.dut.log.info("\t0x%08X" % self.out_status.value.get_value())
+        #print "finished with writing data"
+        self.response = Array('B')
+        value = self.dut.out_data.value.get_value()
+        self.response.append(0xFF & (value >> 24))
+        self.response.append(0xFF & (value >> 16))
+        self.response.append(0xFF & (value >> 8))
+        self.response.append(0xFF & value)
 
+        yield( self.wait_clocks(10))
+        self.comm_lock.release()
 
     @cocotb.coroutine
     def wait_for_interrupts(self, wait_time = 1):
@@ -257,25 +233,25 @@ class NysaSim (Nysa):
 
     @cocotb.coroutine
     def reset(self):
-        self.dut.log.info("Sending Reset to the bus")
-        yield Timer (0)
+        yield(self.comm_lock.acquire())
+        #print "Reset Acquired Lock"
+        yield(self.wait_clocks(RESET_PERIOD / 2))
 
-        self.rst            <= 1
-        yield ClockCycles(self.dut.clk, self.reset_length)
-        self.dut.log.info("Reset high") 
-        #self.rst            <= 0
-        self.in_ready       <= 0
-        self.in_reset       <= 0
-        self.out_ready      <= 0
+        self.dut.rst            <= 1
+        #self.dut.log.info("Sending Reset to the bus")
+        self.dut.in_ready       <= 0
+        self.dut.out_ready      <= 0
 
-        self.in_command     <= 0
-        self.in_address     <= 0
-        self.in_data        <= 0
-        self.in_data_count  <= 0
-
-        self.rst            <= 0
-        yield ClockCycles(self.dut.clk, self.reset_length)
-        yield ClockCycles(self.dut.clk, self.reset_length)
+        self.dut.in_command     <= 0
+        self.dut.in_address     <= 0
+        self.dut.in_data        <= 0
+        self.dut.in_data_count  <= 0
+        yield(self.wait_clocks(RESET_PERIOD / 2))
+        self.dut.rst            <= 0
+        yield(self.wait_clocks(RESET_PERIOD / 2))
+        yield( self.wait_clocks(10))
+        self.comm_lock.release()
+        #print "Reset Release Lock"
 
     @cocotb.coroutine
     def ping(self):
@@ -293,14 +269,14 @@ class NysaSim (Nysa):
         if timeout_count == self.timeout:
             self.dut.log.error("Timed out while waiting for master to be ready")
             return
-            
+
         yield ReadWrite()
-        self.in_ready       <=  1
-        self.in_command     <=  0
-        self.in_data        <=  0
-        self.in_address     <=  0
-        self.in_data_count  <=  0
-        self.out_ready      <=  1
+        self.dut.in_ready       <=  1
+        self.dut.in_command     <=  0
+        self.dut.in_data        <=  0
+        self.dut.in_address     <=  0
+        self.dut.in_data_count  <=  0
+        self.dut.out_ready      <=  1
 
         timeout_count       =  0
 
@@ -308,7 +284,7 @@ class NysaSim (Nysa):
             yield RisingEdge(self.dut.clk)
             timeout_count   += 1
             yield ReadOnly()
-            if self.out_en.value.get_value() == 0:
+            if self.dut.out_en.value.get_value() == 0:
                 continue
             else:
                 break
@@ -316,8 +292,27 @@ class NysaSim (Nysa):
         if timeout_count == self.timeout:
             self.dut.log.error("Timed out while waiting for master to respond")
             return
-        self.in_ready       <= 0
-        
+        self.dut.in_ready       <= 0
+
         self.dut.log.info("Master Responded to ping")
         self.dut.log.info("\t0x%08X" % self.out_status.value.get_value())
+
+    def register_interrupt_callback(self, index, callback):
+        pass
+
+    def unregister_interrupt_callback(self, index, callback = None):
+        pass
+
+    def get_sdb_base_address(self):
+        return 0x0
+
+    def get_board_name(self):
+        return "Cocotb"
+
+    def upload(self, filepath):
+        pass
+
+    def program(self):
+        pass
+
 
