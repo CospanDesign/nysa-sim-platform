@@ -77,6 +77,7 @@ class SimPlatform(Platform):
             unique = os.path.split(f)[-1]
             unique = os.path.splitext(unique)[0]
             fn = FauxNysa(d, self.status)
+            fn.read_sdb()
             if self.status: self.status.Debug("\tFound: %s" % unique)
             sim_dict[unique] = fn
 
