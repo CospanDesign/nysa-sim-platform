@@ -60,12 +60,12 @@ def create_thread(function, name, dut, args):
 
 class NysaSim (FauxNysa):
 
-    def __init__(self, dut, period = CLK_PERIOD):
+    def __init__(self, dut, period = CLK_PERIOD, sim_config):
         self.status = Status()
         self.status.set_level('verbose')
         self.comm_lock = cocotb.triggers.Lock('comm')
         self.dut                              = dut
-        dev_dict                              = json.load(open('test_dict.json'))
+        dev_dict                              = json.load(open(sim_config))
         super (NysaSim, self).__init__(dev_dict, self.status)
 
         self.timeout                          = 1000
