@@ -36,7 +36,7 @@ import os
 import time
 from array import array as Array
 
-from nysa.ibuilder.lib.gen_scripts.gen_sdb import GenSDB
+from nysa.ibuilder.gen_scripts.gen_sdb import GenSDB
 from nysa.cbuilder.sdb import SDBError
 from nysa.host.nysa import Nysa
 
